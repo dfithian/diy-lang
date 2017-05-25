@@ -28,13 +28,19 @@ class Environment:
         self.bindings = variables if variables else {}
 
     def lookup(self, symbol):
-        raise NotImplementedError("DIY")
+        if symbol in self.bindings:
+            return self.bindings[symbol]
+        raise DiyLangError('Symbol not found: {}'.format(symbol))
 
     def extend(self, variables):
-        raise NotImplementedError("DIY")
+        new_bindings = dict(self.bindings)
+        new_bindings.update(variables)
+        return Environment(new_bindings)
 
     def set(self, symbol, value):
-        raise NotImplementedError("DIY")
+        if symbol in self.bindings:
+            raise DiyLangError('Symbol already defined: {}'.format(symbol))
+        self.bindings.update({symbol: value})
 
 
 class String:
