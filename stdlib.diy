@@ -4,5 +4,128 @@
     (lambda (b)
         (if b #f #t)))
 
-;; DIY -- Implement the rest of your standard library
-;; here as part 7 of the workshop.
+(define or
+    (lambda (x y)
+        (if x #t y)))
+
+(define and
+    (lambda (x y)
+        (if x y #f)))
+
+(define xor
+    (lambda (x y)
+        (if x (not y) y)))
+
+(define <
+    (lambda (x y)
+        (and (not (eq x y)) (not (> x y)))))
+
+(define >=
+    (lambda (x y)
+        (not (< x y))))
+
+(define <=
+    (lambda (x y)
+        (not (> x y))))
+
+(define length
+    (lambda (xs)
+        (if (empty xs)
+            0
+            (+ 1 (length (tail xs))))))
+
+(define sum
+    (lambda (xs)
+        (if (empty xs)
+            0
+            (+ (head xs) (sum (tail xs))))))
+
+(define range
+    (lambda (from to)
+        (if (> from to)
+            '()
+            (cons from (range (+ from 1) to)))))
+
+(define append
+    (lambda (xs ys)
+        (if (empty xs)
+            ys
+            (cons (head xs) (append (tail xs) ys)))))
+
+(define reverse
+    (lambda (xs)
+        (if (empty xs)
+            '()
+            (append (reverse (tail xs)) (cons (head xs) '())))))
+
+(define filter
+    (lambda (f xs)
+        (if (empty xs)
+            '()
+            (if (f (head xs))
+                (cons (head xs) (filter f (tail xs)))
+                (filter f (tail xs))))))
+
+(define map
+    (lambda (f xs)
+        (if (empty xs)
+            '()
+            (cons (f (head xs)) (map f (tail xs))))))
+
+(define reduce
+    (lambda (f accum xs)
+        (if (empty xs)
+            accum
+            (reduce f (f accum (head xs)) (tail xs)))))
+
+(define take
+    (lambda (n xs)
+        (if (or (empty xs) (<= n 0))
+            '()
+            (cons (head xs) (take (- n 1) (tail xs))))))
+
+(define drop
+    (lambda (n xs)
+        (if (empty xs)
+            '()
+            (if (<= n 0)
+                xs
+                (drop (- n 1) (tail xs))))))
+
+(define quicksort
+    (lambda (xs)
+        (if (empty xs)
+            '()
+            (append
+                (quicksort (filter (lambda (x) (< x (head xs))) (tail xs)))
+                (cons
+                    (head xs)
+                    (quicksort (filter (lambda (x) (>= x (head xs))) (tail xs))))))))
+
+(define merge
+    (lambda (xs ys)
+        (if (empty xs)
+            ys
+            (if (empty ys)
+                xs
+                (if (< (head xs) (head ys))
+                    (cons (head xs) (merge (tail xs) ys))
+                    (cons (head ys) (merge xs (tail ys))))))))
+
+(define mergesort
+    (lambda (xs)
+        (if (or (empty xs) (eq 1 (length xs)))
+            xs
+            (merge
+                (mergesort (take (/ (length xs) 2) xs))
+                (mergesort (drop (/ (length xs) 2) xs))))))
+
+(define sort mergesort)
+
+; (define cond
+;     (lambda (xs)
+;         (if (empty xs)
+;             #f
+;             (if (head (head xs))
+;                 (head (tail (head xs)))
+;                 (cond (tail xs))))))
