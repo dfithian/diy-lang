@@ -11,11 +11,27 @@ the evaluator can understand.
 """
 
 
+KEYWORD_MAPPINGS = {
+    '#t': True,
+    '#f': False
+}
+
 def parse(source):
     """Parse string representation of one *single* expression
     into the corresponding Abstract Syntax Tree."""
-
-    raise NotImplementedError("DIY")
+    source = remove_comments(source).strip()
+    if source.startswith('('):
+        pos = find_matching_paren(source)
+        if pos != len(source) - 1:
+            raise DiyLangError('Expected EOF')
+        return [parse(remove_comments(exp).strip()) for exp in split_exps(source[1:pos])]
+    elif source.startswith('\''):
+        return parse('(quote {})'.format(source[1:]))
+    elif source in KEYWORD_MAPPINGS:
+        return KEYWORD_MAPPINGS[source]
+    elif source.isdigit():
+        return int(source)
+    return source
 
 #
 # Below are a few useful utility functions. These should come in handy when
