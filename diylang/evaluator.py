@@ -45,20 +45,50 @@ def do_closure(closure, args, env):
     new_env = Environment(closure.env.bindings).extend(dict(zip(closure.params, new_args)))
     return evaluate(closure.body, new_env)
 
+def cond(xs, env):
+    if len(xs) == 0:
+        return False
+    if evaluate(xs[0][0], env):
+        return evaluate(xs[0][1], env)
+    return cond(xs[1:], env)
+
+def let(bindings, exp, env):
+    new_env = Environment(env.bindings)
+    for binding in bindings:
+        binding[1] = evaluate(binding[1], new_env)
+        new_env = new_env.extend(dict([(binding[0], binding[1])]))
+    return evaluate(exp, new_env)
+
+def defn(symbol, params, body, env):
+    return define(symbol, do_lambda(params, body, env), env)
+
 def cons(x, xs, env):
-    return [evaluate(x, env)] + evaluate(xs, env)
+    s = is_string(xs)
+    if s:
+        ret = String(x.val + xs.val)
+    else:
+        ret = [evaluate(x, env)] + evaluate(xs, env)
+    return ret
 
 def head(xs, env):
+    s = is_string(xs)
+    if s:
+        xs = xs.val
     if len(xs) == 0:
         raise DiyLangError('No head of empty list')
-    return xs[0]
+    return String(xs[0]) if s else xs[0]
 
 def tail(xs, env):
+    s = is_string(xs)
+    if s:
+        xs = xs.val
     if len(xs) == 0:
         raise DiyLangError('No tail of empty list')
-    return xs[1:]
+    return String(xs[1:]) if s else xs[1:]
 
 def empty(xs, env):
+    if is_string(xs):
+        xs = xs.val
     return len(xs) == 0
 
 def add(l, r, env):
@@ -111,7 +141,10 @@ BUILTIN_FUNCTIONS = {
     'if':     lambda xs, env: call_with_n_args(do_if,     xs, 3, env),
     'define': lambda xs, env: call_with_n_args(define,    xs, 2, env),
     'lambda': lambda xs, env: call_with_n_args(do_lambda, xs, 2, env),
-    'cons':   lambda xs, env: call_with_n_args(cons,      xs, 2, env)
+    'cons':   lambda xs, env: call_with_n_args(cons,      xs, 2, env),
+    'cond':   lambda xs, env: call_with_n_args(cond,      xs, 1, env),
+    'let':    lambda xs, env: call_with_n_args(let,       xs, 2, env),
+    'defn':   lambda xs, env: call_with_n_args(defn,      xs, 3, env)
 }
 
 LIST_FUNCTIONS = {
@@ -143,6 +176,8 @@ def evaluate(ast, env):
         elif is_closure(ast[0]):
             return do_closure(ast[0], ast[1:], env)
         elif ast[0] in LIST_FUNCTIONS:
+            if is_string(ast[1]):
+                return LIST_FUNCTIONS[ast[0]](ast[1], env)
             return LIST_FUNCTIONS[ast[0]](evaluate(ast[1:], env), env)
         elif ast[0] in NUMBER_FUNCTIONS:
             return NUMBER_FUNCTIONS[ast[0]](evaluate(ast[1], env), evaluate(ast[2], env), env)

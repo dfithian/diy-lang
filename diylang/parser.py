@@ -27,6 +27,11 @@ def parse(source):
         return [parse(remove_comments(exp).strip()) for exp in split_exps(source[1:pos])]
     elif source.startswith('\''):
         return parse('(quote {})'.format(source[1:]))
+    elif source.startswith('\"'):
+        pos = find_next_quote(source)
+        if pos != len(source) - 1:
+            raise DiyLangError("Expected EOF")
+        return String(source[1:pos])
     elif source in KEYWORD_MAPPINGS:
         return KEYWORD_MAPPINGS[source]
     elif source.isdigit():
@@ -45,6 +50,17 @@ def remove_comments(source):
     return re.sub(r";.*\n", "\n", source)
 
 
+def find_next_quote(source, start=0):
+    """Pair a quote"""
+    assert source[start] == '\"'
+    pos = start + 1
+    while source[pos] != '\"' or source[pos - 1] == '\\':
+        pos += 1
+        if len(source) == pos:
+            raise DiyLangError('Unclosed string literal: {}'.format(source[start:]))
+    return pos
+
+
 def find_matching_paren(source, start=0):
     """Given a string and the index of an opening parenthesis, determines
     the index of the matching closing paren."""
@@ -60,6 +76,8 @@ def find_matching_paren(source, start=0):
             open_brackets += 1
         if source[pos] == ')':
             open_brackets -= 1
+        if source[pos] == '\"':
+            pos = find_next_quote(source, pos)
     return pos
 
 
@@ -93,6 +111,9 @@ def first_expression(source):
         return source[0] + exp, rest
     elif source[0] == "(":
         last = find_matching_paren(source)
+        return source[:last + 1], source[last + 1:]
+    elif source[0] == "\"":
+        last = find_next_quote(source)
         return source[:last + 1], source[last + 1:]
     else:
         match = re.match(r"^[^\s)(']+", source)
