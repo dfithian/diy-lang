@@ -32,6 +32,19 @@ def define(symbol, value, env):
     env.set(symbol, evaluate(value, env))
     return 'Defined {}'.format(symbol)
 
+def do_lambda(params, body, env):
+    if not is_list(params):
+        raise DiyLangError('Not a list: {}'.format(params))
+    return Closure(env, params, body)
+
+def do_closure(closure, args, env):
+    new_args = [evaluate(arg, env) for arg in args]
+    if len(closure.params) != len(new_args):
+        raise DiyLangError('Closure wrong number of arguments, expected {} got {}' \
+                           .format(len(closure.params), len(new_args)))
+    new_env = Environment(closure.env.bindings).extend(dict(zip(closure.params, new_args)))
+    return evaluate(closure.body, new_env)
+
 def add(l, r, env):
     if is_integer(l) and is_integer(r):
         return int(int(l) + int(r))
@@ -77,7 +90,9 @@ NUMBER_FUNCTIONS = {
 def evaluate(ast, env):
     """Evaluate an Abstract Syntax Tree in the specified environment."""
     if is_list(ast):
-        if ast[0] == 'quote':
+        if len(ast) == 0:
+            raise DiyLangError('Empty list encountered')
+        elif ast[0] == 'quote':
             return quote(ast[1], env)
         elif ast[0] == 'atom':
             return atom(ast[1], env)
@@ -88,9 +103,23 @@ def evaluate(ast, env):
         elif ast[0] == 'define':
             if len(ast) != 3:
                 raise DiyLangError('Wrong number of arguments')
-            define(ast[1], ast[2], env)
+            return define(ast[1], ast[2], env)
+        elif ast[0] == 'lambda':
+            if len(ast) != 3:
+                raise DiyLangError('Wrong number of arguments')
+            return do_lambda(ast[1], ast[2], env)
+        elif is_closure(ast[0]):
+            return do_closure(ast[0], ast[1:], env)
+        elif is_list(ast[0]):
+            if len(ast) > 1:
+                return evaluate([evaluate(ast[0], env)] + ast[1:], env)
+            return evaluate(ast[0], env)
         elif ast[0] in NUMBER_FUNCTIONS:
             return NUMBER_FUNCTIONS[ast[0]](evaluate(ast[1], env), evaluate(ast[2], env), env)
+        elif ast[0] in env.bindings:
+            return do_closure(env.lookup(ast[0]), ast[1:], env)
+        else:
+            raise DiyLangError('{} is not a function'.format(ast[0]))
     elif is_symbol(ast):
         return env.lookup(ast)
     return ast
