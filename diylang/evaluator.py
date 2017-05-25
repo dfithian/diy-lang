@@ -23,6 +23,9 @@ def atom(a, env):
 def eq(l, r, env):
     return atom(l, env) and atom(r, env) and evaluate(l, env) == evaluate(r, env)
 
+def do_if(p, if_true, if_false, env):
+    return evaluate(if_true, env) if eq(True, p, env) else evaluate(if_false, env)
+
 def add(l, r, env):
     if is_integer(l) and is_integer(r):
         return int(int(l) + int(r))
@@ -74,6 +77,8 @@ def evaluate(ast, env):
             return atom(ast[1], env)
         elif ast[0] == 'eq':
             return eq(ast[1], ast[2], env)
+        elif ast[0] == 'if':
+            return do_if(evaluate(ast[1], env), ast[2], ast[3], env)
         elif ast[0] in NUMBER_FUNCTIONS:
-            return NUMBER_FUNCTIONS[ast[0]](ast[1], ast[2], env)
+            return NUMBER_FUNCTIONS[ast[0]](evaluate(ast[1], env), evaluate(ast[2], env), env)
     return ast
