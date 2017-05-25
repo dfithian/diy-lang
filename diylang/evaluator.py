@@ -14,7 +14,66 @@ making your work a bit easier. (We're supposed to get through this thing
 in a day, after all.)
 """
 
+def quote(q, env):
+    return q
+
+def atom(a, env):
+    return not is_list(evaluate(a, env))
+
+def eq(l, r, env):
+    return atom(l, env) and atom(r, env) and evaluate(l, env) == evaluate(r, env)
+
+def add(l, r, env):
+    if is_integer(l) and is_integer(r):
+        return int(int(l) + int(r))
+    raise DiyLangError('Expected two numbers (got {}, {})'.format(l, r))
+
+def subtract(l, r, env):
+    if is_integer(l) and is_integer(r):
+        return int(int(l) - int(r))
+    raise DiyLangError('Expected two numbers (got {}, {})'.format(l, r))
+
+def divide(l, r, env):
+    if is_integer(l) and is_integer(r):
+        if int(r) == 0:
+            raise DiyLangError('Divide by zero')
+        return int(int(l) / int(r))
+    raise DiyLangError('Expected two numbers (got {}, {})'.format(l, r))
+
+def multiply(l, r, env):
+    if is_integer(l) and is_integer(r):
+        return int(int(l) * int(r))
+
+def mod(l, r, env):
+    if is_integer(l) and is_integer(r):
+        if int(r) == 0:
+            raise DiyLangError('Mod by zero')
+        return int(int(l) % int(r))
+    raise DiyLangError('Expected two numbers (got {}, {})'.format(l, r))
+
+def greater(l, r, env):
+    if is_integer(l) and is_integer(r):
+        return int(l) > int(r)
+    raise DiyLangError('Expected two numbers (got {}, {})'.format(l, r))
+
+NUMBER_FUNCTIONS = {
+    '+': add,
+    '-': subtract,
+    '/': divide,
+    '*': multiply,
+    'mod': mod,
+    '>': greater
+}
 
 def evaluate(ast, env):
     """Evaluate an Abstract Syntax Tree in the specified environment."""
-    raise NotImplementedError("DIY")
+    if is_list(ast):
+        if ast[0] == 'quote':
+            return quote(ast[1], env)
+        elif ast[0] == 'atom':
+            return atom(ast[1], env)
+        elif ast[0] == 'eq':
+            return eq(ast[1], ast[2], env)
+        elif ast[0] in NUMBER_FUNCTIONS:
+            return NUMBER_FUNCTIONS[ast[0]](ast[1], ast[2], env)
+    return ast
