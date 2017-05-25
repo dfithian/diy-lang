@@ -24,7 +24,7 @@ def eq(l, r, env):
     return atom(l, env) and atom(r, env) and evaluate(l, env) == evaluate(r, env)
 
 def do_if(p, if_true, if_false, env):
-    return evaluate(if_true, env) if eq(True, p, env) else evaluate(if_false, env)
+    return evaluate(if_true, env) if eq(True, evaluate(p, env), env) else evaluate(if_false, env)
 
 def define(symbol, value, env):
     if not is_symbol(symbol) or symbol in KEYWORD_MAPPINGS:
@@ -44,6 +44,22 @@ def do_closure(closure, args, env):
                            .format(len(closure.params), len(new_args)))
     new_env = Environment(closure.env.bindings).extend(dict(zip(closure.params, new_args)))
     return evaluate(closure.body, new_env)
+
+def cons(x, xs, env):
+    return [evaluate(x, env)] + evaluate(xs, env)
+
+def head(xs, env):
+    if len(xs) == 0:
+        raise DiyLangError('No head of empty list')
+    return xs[0]
+
+def tail(xs, env):
+    if len(xs) == 0:
+        raise DiyLangError('No tail of empty list')
+    return xs[1:]
+
+def empty(xs, env):
+    return len(xs) == 0
 
 def add(l, r, env):
     if is_integer(l) and is_integer(r):
@@ -78,6 +94,32 @@ def greater(l, r, env):
         return int(l) > int(r)
     raise DiyLangError('Expected two numbers (got {}, {})'.format(l, r))
 
+def call_with_n_args(f, xs, n, env):
+    if len(xs) != n:
+        raise DiyLangError('Wrong number of arguments')
+    if n == 1:
+        return f(xs[0], env)
+    elif n == 2:
+        return f(xs[0], xs[1], env)
+    elif n == 3:
+        return f(xs[0], xs[1], xs[2], env)
+
+BUILTIN_FUNCTIONS = {
+    'quote':  lambda xs, env: call_with_n_args(quote,     xs, 1, env),
+    'atom':   lambda xs, env: call_with_n_args(atom,      xs, 1, env),
+    'eq':     lambda xs, env: call_with_n_args(eq,        xs, 2, env),
+    'if':     lambda xs, env: call_with_n_args(do_if,     xs, 3, env),
+    'define': lambda xs, env: call_with_n_args(define,    xs, 2, env),
+    'lambda': lambda xs, env: call_with_n_args(do_lambda, xs, 2, env),
+    'cons':   lambda xs, env: call_with_n_args(cons,      xs, 2, env)
+}
+
+LIST_FUNCTIONS = {
+    'head': head,
+    'tail': tail,
+    'empty': empty
+}
+
 NUMBER_FUNCTIONS = {
     '+': add,
     '-': subtract,
@@ -92,32 +134,23 @@ def evaluate(ast, env):
     if is_list(ast):
         if len(ast) == 0:
             raise DiyLangError('Empty list encountered')
-        elif ast[0] == 'quote':
-            return quote(ast[1], env)
-        elif ast[0] == 'atom':
-            return atom(ast[1], env)
-        elif ast[0] == 'eq':
-            return eq(ast[1], ast[2], env)
-        elif ast[0] == 'if':
-            return do_if(evaluate(ast[1], env), ast[2], ast[3], env)
-        elif ast[0] == 'define':
-            if len(ast) != 3:
-                raise DiyLangError('Wrong number of arguments')
-            return define(ast[1], ast[2], env)
-        elif ast[0] == 'lambda':
-            if len(ast) != 3:
-                raise DiyLangError('Wrong number of arguments')
-            return do_lambda(ast[1], ast[2], env)
-        elif is_closure(ast[0]):
-            return do_closure(ast[0], ast[1:], env)
         elif is_list(ast[0]):
             if len(ast) > 1:
                 return evaluate([evaluate(ast[0], env)] + ast[1:], env)
             return evaluate(ast[0], env)
+        elif ast[0] in BUILTIN_FUNCTIONS:
+            return BUILTIN_FUNCTIONS[ast[0]](ast[1:], env)
+        elif is_closure(ast[0]):
+            return do_closure(ast[0], ast[1:], env)
+        elif ast[0] in LIST_FUNCTIONS:
+            return LIST_FUNCTIONS[ast[0]](evaluate(ast[1:], env), env)
         elif ast[0] in NUMBER_FUNCTIONS:
             return NUMBER_FUNCTIONS[ast[0]](evaluate(ast[1], env), evaluate(ast[2], env), env)
         elif ast[0] in env.bindings:
-            return do_closure(env.lookup(ast[0]), ast[1:], env)
+            binding = env.lookup(ast[0])
+            if is_closure(binding):
+                return do_closure(binding, ast[1:], env)
+            return binding
         else:
             raise DiyLangError('{} is not a function'.format(ast[0]))
     elif is_symbol(ast):
